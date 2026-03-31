@@ -60,3 +60,66 @@ func parseAdbDevices(out string) []Device {
 
 	return devices
 }
+
+// FileItem represents a file or directory on the Android device
+type FileItem struct {
+	Name     string `json:"name"`
+	IsDir    bool   `json:"isDir"`
+	Size     string `json:"size"`
+	Mode     string `json:"mode"`
+	Modified string `json:"modified"`
+}
+
+// ListFiles executes `adb shell ls -la` and parses the output
+func (a *App) ListFiles(deviceID string, path string) []FileItem {
+	if path == "" {
+		path = "/sdcard/"
+	}
+
+	cmd := exec.Command("adb", "-s", deviceID, "shell", "ls", "-la", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return []FileItem{} // Return empty list on error
+	}
+
+	return parseLSA(string(out))
+}
+
+func parseLSA(out string) []FileItem {
+	lines := strings.Split(out, "\n")
+	var files []FileItem
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "total ") {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		// Usually ls -la output has 8 or more fields:
+		// drwxrwx--x 3 root sdcard_rw 4096 2023-10-10 10:10 folder name
+		// 0          1 2    3         4    5          6     7+
+		if len(parts) >= 8 {
+			isDir := strings.HasPrefix(parts[0], "d") || strings.HasPrefix(parts[0], "l")
+			size := parts[4]
+			date := parts[5]
+			timeStr := parts[6]
+			name := strings.Join(parts[7:], " ")
+			
+			// Skip current directory reference to declutter
+			if name == "." {
+			    continue
+			}
+
+			files = append(files, FileItem{
+				Name:     name,
+				IsDir:    isDir,
+				Size:     size,
+				Mode:     parts[0],
+				Modified: date + " " + timeStr,
+			})
+		}
+	}
+
+	return files
+}

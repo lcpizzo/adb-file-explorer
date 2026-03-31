@@ -3,3 +3,5 @@
 import {main} from '../models';
 
 export function GetAdbDevices():Promise<Array<main.Device>>;
+
+export function ListFiles(arg1:string,arg2:string):Promise<Array<main.FileItem>>;
