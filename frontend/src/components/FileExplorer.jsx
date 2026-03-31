@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ListFiles } from "../../wailsjs/go/main/App";
+import { ListFiles, SelectDirectory, DownloadFiles } from "../../wailsjs/go/main/App";
 import { FolderIcon, FileIcon, BackIcon, UpIcon, PrevIcon } from './Icons';
 
 export default function FileExplorer({ deviceId, onBack }) {
@@ -8,6 +8,9 @@ export default function FileExplorer({ deviceId, onBack }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [history, setHistory] = useState([]);
+    
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const fetchFiles = async (targetPath) => {
         setLoading(true);
@@ -16,6 +19,7 @@ export default function FileExplorer({ deviceId, onBack }) {
             const tempFiles = await ListFiles(deviceId, targetPath);
             setFiles(tempFiles || []);
             setCurrentPath(targetPath);
+            setSelectedFiles([]); // Reset selection when navigating
         } catch (err) {
             setError("Failed to fetch files: " + err.toString());
         } finally {
@@ -68,6 +72,61 @@ export default function FileExplorer({ deviceId, onBack }) {
         }
     };
 
+    const toggleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedFiles(files.map(f => f.name));
+        } else {
+            setSelectedFiles([]);
+        }
+    };
+
+    const toggleSelectFile = (e, name) => {
+        e.stopPropagation();
+        if (e.target.checked) {
+            setSelectedFiles(prev => [...prev, name]);
+        } else {
+            setSelectedFiles(prev => prev.filter(f => f !== name));
+        }
+    };
+    
+    const handleDownload = async () => {
+        let dest = localStorage.getItem("adbDownloadDest");
+        if (!dest) {
+            try {
+                dest = await SelectDirectory();
+                if (!dest) return;
+                localStorage.setItem("adbDownloadDest", dest);
+            } catch (err) {
+                setError("Failed to select dir: " + err);
+                return;
+            }
+        }
+        
+        setIsDownloading(true);
+        setError(null);
+        try {
+            const fullPaths = selectedFiles.map(name => currentPath.endsWith('/') ? currentPath + name : currentPath + '/' + name);
+            await DownloadFiles(deviceId, fullPaths, dest);
+            setSelectedFiles([]);
+            alert("Files downloaded successfully to " + dest);
+        } catch (err) {
+            setError("Download failed: " + err);
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const handleChangeDest = async () => {
+        try {
+            const dest = await SelectDirectory();
+            if (dest) {
+                localStorage.setItem("adbDownloadDest", dest);
+            }
+        } catch (err) {
+            setError("Failed to change directory: " + err);
+        }
+    };
+
     return (
         <div className="file-explorer-container">
             <div className="header">
@@ -112,6 +171,20 @@ export default function FileExplorer({ deviceId, onBack }) {
                     </button>
                 </div>
                 
+                {selectedFiles.length > 0 && (
+                    <div className="action-bar">
+                        <span className="selected-count">{selectedFiles.length} item(s) selected</span>
+                        <div className="action-buttons">
+                            <button className="dest-btn" onClick={handleChangeDest} disabled={isDownloading}>
+                                Change Dest
+                            </button>
+                            <button className="download-btn" onClick={handleDownload} disabled={isDownloading}>
+                                {isDownloading ? "Downloading..." : "⬇ Download"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="file-list-wrapper">
                     {loading ? (
                         <div className="loading-state">Loading files...</div>
@@ -119,6 +192,13 @@ export default function FileExplorer({ deviceId, onBack }) {
                         <table className="file-table">
                             <thead>
                                 <tr>
+                                    <th className="checkbox-cell">
+                                        <input 
+                                            type="checkbox" 
+                                            onChange={toggleSelectAll} 
+                                            checked={selectedFiles.length === files.length && files.length > 0} 
+                                        />
+                                    </th>
                                     <th>Type</th>
                                     <th>Name</th>
                                     <th>Size</th>
@@ -128,7 +208,14 @@ export default function FileExplorer({ deviceId, onBack }) {
                             </thead>
                             <tbody>
                                 {files.map((file, idx) => (
-                                    <tr key={idx} className={`file-row ${file.isDir ? 'is-dir' : ''}`} onClick={() => handleFileClick(file)}>
+                                    <tr key={idx} className={`file-row ${file.isDir ? 'is-dir' : ''} ${selectedFiles.includes(file.name) ? 'selected' : ''}`} onClick={() => handleFileClick(file)}>
+                                        <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedFiles.includes(file.name)} 
+                                                onChange={(e) => toggleSelectFile(e, file.name)} 
+                                            />
+                                        </td>
                                         <td className="file-icon-cell">
                                             {file.isDir ? <FolderIcon /> : <FileIcon />}
                                         </td>
@@ -140,7 +227,7 @@ export default function FileExplorer({ deviceId, onBack }) {
                                 ))}
                                 {files.length === 0 && (
                                     <tr>
-                                        <td colSpan="5" className="empty-folder">Directory is empty</td>
+                                        <td colSpan="6" className="empty-folder">Directory is empty</td>
                                     </tr>
                                 )}
                             </tbody>

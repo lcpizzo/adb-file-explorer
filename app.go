@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Device represents an ADB device
@@ -122,4 +125,24 @@ func parseLSA(out string) []FileItem {
 	}
 
 	return files
+}
+
+// SelectDirectory opens a native dialog to choose a folder and returns the selected path
+func (a *App) SelectDirectory() (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Download Destination",
+		CanCreateDirectories: true,
+	})
+}
+
+// DownloadFiles pulls the specified remote paths from the device to the local destination
+func (a *App) DownloadFiles(deviceID string, remotePaths []string, destDir string) error {
+	for _, remotePath := range remotePaths {
+		cmd := exec.Command("adb", "-s", deviceID, "pull", remotePath, destDir)
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to pull %s: %v", remotePath, err)
+		}
+	}
+	return nil
 }
