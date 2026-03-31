@@ -1,0 +1,13 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "adb-file-explorer",
+  "outputfilename": "adb-file-explorer",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "lcpizzo",
+    "email": "leonardo_pizzo@usp.br"
+  }
+}
