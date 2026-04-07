@@ -80,6 +80,25 @@
   cursor: not-allowed;
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.record-btn.recording {
+  background: rgba(218, 54, 51, 0.15);
+  color: #ff7b72;
+  border-color: rgba(218, 54, 51, 0.4);
+  animation: pulseRecord 2s infinite;
+}
+
+@keyframes pulseRecord {
+  0% { box-shadow: 0 0 0 0 rgba(218, 54, 51, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(218, 54, 51, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(218, 54, 51, 0); }
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }

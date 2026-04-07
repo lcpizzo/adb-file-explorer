@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -149,4 +152,54 @@ func (a *App) DownloadFiles(deviceID string, remotePaths []string, destDir strin
 		}
 	}
 	return nil
+}
+
+// CaptureScreen captures the screen of the device and saves it to a local file
+func (a *App) CaptureScreen(deviceID string, destDir string) error {
+	fileName := fmt.Sprintf("screencap_%d.png", time.Now().Unix())
+	destPath := filepath.Join(destDir, fileName)
+
+	// Since we are capturing raw bytes, we can use exec-out
+	cmd := exec.Command(adbPath, "-s", deviceID, "exec-out", "screencap", "-p")
+	
+	outFile, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("failed to create local file: %v", err)
+	}
+	defer outFile.Close()
+
+	cmd.Stdout = outFile
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to capture screen: %v", err)
+	}
+	return nil
+}
+
+// RecordScreen starts recording the device screen and saves it locally
+func (a *App) RecordScreen(deviceID string, destDir string) error {
+	fileName := fmt.Sprintf("screenrecord_%d.mp4", time.Now().Unix())
+	deviceTempPath := "/data/local/tmp/temp_record.mp4"
+	localDestPath := filepath.Join(destDir, fileName)
+
+	// Run with max 30s limit
+	cmd := exec.Command(adbPath, "-s", deviceID, "shell", "screenrecord", "--time-limit", "30", deviceTempPath)
+	_ = cmd.Run() // Blocks until 30s limit is reached or the process is stopped
+
+	// We still attempt to pull the file even if there is an error (e.g. from early stop)
+	pullCmd := exec.Command(adbPath, "-s", deviceID, "pull", deviceTempPath, localDestPath)
+	pullErr := pullCmd.Run()
+
+	// Clean up temp file on device
+	exec.Command(adbPath, "-s", deviceID, "shell", "rm", deviceTempPath).Run()
+
+	if pullErr != nil {
+		return fmt.Errorf("failed to pull screen record: %v", pullErr)
+	}
+	return nil
+}
+
+// StopScreenRecord cleanly stops any running screen record
+func (a *App) StopScreenRecord(deviceID string) error {
+	cmd := exec.Command(adbPath, "-s", deviceID, "shell", "pkill", "-INT", "screenrecord")
+	return cmd.Run()
 }

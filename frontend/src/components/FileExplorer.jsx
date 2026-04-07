@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ListFiles, SelectDirectory, DownloadFiles } from "../../wailsjs/go/main/App";
+import { ListFiles, SelectDirectory, DownloadFiles, CaptureScreen, RecordScreen, StopScreenRecord } from "../../wailsjs/go/main/App";
 import { FolderIcon, FileIcon, BackIcon, UpIcon, PrevIcon } from './Icons';
 
 export default function FileExplorer({ deviceId, onBack }) {
@@ -11,6 +11,11 @@ export default function FileExplorer({ deviceId, onBack }) {
     
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [isDownloading, setIsDownloading] = useState(false);
+
+    // Media capturing state
+    const [mediaDestDir, setMediaDestDir] = useState(null);
+    const [isRecording, setIsRecording] = useState(false);
+    const [isCapturing, setIsCapturing] = useState(false);
 
     const fetchFiles = async (targetPath) => {
         setLoading(true);
@@ -127,14 +132,78 @@ export default function FileExplorer({ deviceId, onBack }) {
         }
     };
 
+    const getOrSelectMediaDest = async () => {
+        if (mediaDestDir) return mediaDestDir;
+        try {
+            const dest = await SelectDirectory();
+            if (dest) {
+                setMediaDestDir(dest);
+                return dest;
+            }
+        } catch (err) {
+            setError("Failed to select media directory: " + err);
+        }
+        return null;
+    };
+
+    const handleCaptureScreen = async () => {
+        const dest = await getOrSelectMediaDest();
+        if (!dest) return;
+
+        setIsCapturing(true);
+        setError(null);
+        try {
+            await CaptureScreen(deviceId, dest);
+            alert("Screenshot saved successfully to " + dest);
+        } catch (err) {
+            setError("Failed to capture screen: " + err);
+        } finally {
+            setIsCapturing(false);
+        }
+    };
+
+    const handleToggleRecording = async () => {
+        if (isRecording) {
+            try {
+                await StopScreenRecord(deviceId);
+                // State will be updated in the original call's finally block
+            } catch (err) {
+                setError("Failed to stop recording: " + err);
+            }
+            return;
+        }
+
+        const dest = await getOrSelectMediaDest();
+        if (!dest) return;
+
+        setIsRecording(true);
+        setError(null);
+        try {
+            await RecordScreen(deviceId, dest);
+            alert("Screen record saved successfully to " + dest);
+        } catch (err) {
+            setError("Failed to record screen: " + err);
+        } finally {
+            setIsRecording(false);
+        }
+    };
+
     return (
         <div className="file-explorer-container">
             <div className="header">
                 <h1>Files: {deviceId}</h1>
-                <button className="refresh-btn" onClick={onBack}>
-                    <BackIcon />
-                    Back
-                </button>
+                <div className="header-actions">
+                    <button className="refresh-btn capture-btn" onClick={handleCaptureScreen} disabled={isCapturing || isRecording}>
+                        {isCapturing ? "Capturing..." : "📷 Screen Cap"}
+                    </button>
+                    <button className={`refresh-btn record-btn ${isRecording ? 'recording' : ''}`} onClick={handleToggleRecording} disabled={isCapturing}>
+                        {isRecording ? "⏹ Stop Recording" : "🎥 Record Screen"}
+                    </button>
+                    <button className="refresh-btn" onClick={onBack}>
+                        <BackIcon />
+                        Back
+                    </button>
+                </div>
             </div>
 
             <div className="content">
