@@ -29,11 +29,15 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if err := ExtractADB(); err != nil {
+		fmt.Printf("Warning: failed to extract adb: %v\n", err)
+		// It will fallback to system "adb"
+	}
 }
 
 // GetAdbDevices returns a list of connected ADB devices
 func (a *App) GetAdbDevices() []Device {
-	cmd := exec.Command("adb", "devices")
+	cmd := exec.Command(adbPath, "devices")
 	out, err := cmd.Output()
 	if err != nil {
 		return []Device{}
@@ -79,7 +83,7 @@ func (a *App) ListFiles(deviceID string, path string) []FileItem {
 		path = "/sdcard/"
 	}
 
-	cmd := exec.Command("adb", "-s", deviceID, "shell", "ls", "-la", path)
+	cmd := exec.Command(adbPath, "-s", deviceID, "shell", "ls", "-la", path)
 	out, err := cmd.Output()
 	if err != nil {
 		return []FileItem{} // Return empty list on error
@@ -138,7 +142,7 @@ func (a *App) SelectDirectory() (string, error) {
 // DownloadFiles pulls the specified remote paths from the device to the local destination
 func (a *App) DownloadFiles(deviceID string, remotePaths []string, destDir string) error {
 	for _, remotePath := range remotePaths {
-		cmd := exec.Command("adb", "-s", deviceID, "pull", remotePath, destDir)
+		cmd := exec.Command(adbPath, "-s", deviceID, "pull", remotePath, destDir)
 		err := cmd.Run()
 		if err != nil {
 			return fmt.Errorf("failed to pull %s: %v", remotePath, err)
