@@ -34,3 +34,6 @@ build/bin/
 # Node
 frontend/node_modules/
 frontend/dist/
+
+# Build
+build_executables.sh
