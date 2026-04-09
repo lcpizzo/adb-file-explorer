@@ -203,3 +203,48 @@ func (a *App) StopScreenRecord(deviceID string) error {
 	cmd := exec.Command(adbPath, "-s", deviceID, "shell", "pkill", "-INT", "screenrecord")
 	return cmd.Run()
 }
+
+// ConnectWifi sets the device to tcpip mode and connects to it over WiFi
+func (a *App) ConnectWifi(deviceID string) (string, error) {
+	// 1. Get the IP first
+	cmd := exec.Command(adbPath, "-s", deviceID, "shell", "ip", "addr", "show", "wlan0")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get wlan0 IP (is wifi on?): %v", err)
+	}
+
+	var ip string
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "inet ") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				ip = strings.Split(parts[1], "/")[0]
+				break
+			}
+		}
+	}
+
+	if ip == "" {
+		return "", fmt.Errorf("could not parse wifi ip address for device")
+	}
+
+	// 2. Set tcpip mode
+	cmd = exec.Command(adbPath, "-s", deviceID, "tcpip", "5555")
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to set tcpip mode: %v", err)
+	}
+
+	// Give the daemon a moment to restart
+	time.Sleep(2 * time.Second)
+
+	// 3. Connect via tcpip
+	cmd = exec.Command(adbPath, "connect", fmt.Sprintf("%s:5555", ip))
+	connectOut, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to %s: %s", ip, string(connectOut))
+	}
+
+	return ip, nil
+}

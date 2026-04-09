@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function CaptureScreen(arg1:string,arg2:string):Promise<void>;
 
+export function ConnectWifi(arg1:string):Promise<string>;
+
 export function DownloadFiles(arg1:string,arg2:Array<string>,arg3:string):Promise<void>;
 
 export function GetAdbDevices():Promise<Array<main.Device>>;

@@ -6,6 +6,10 @@ export function CaptureScreen(arg1, arg2) {
   return window['go']['main']['App']['CaptureScreen'](arg1, arg2);
 }
 
+export function ConnectWifi(arg1) {
+  return window['go']['main']['App']['ConnectWifi'](arg1);
+}
+
 export function DownloadFiles(arg1, arg2, arg3) {
   return window['go']['main']['App']['DownloadFiles'](arg1, arg2, arg3);
 }

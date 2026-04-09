@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ListFiles, SelectDirectory, DownloadFiles, CaptureScreen, RecordScreen, StopScreenRecord } from "../../wailsjs/go/main/App";
+import { ListFiles, SelectDirectory, DownloadFiles, CaptureScreen, RecordScreen, StopScreenRecord, ConnectWifi } from "../../wailsjs/go/main/App";
 import { FolderIcon, FileIcon, BackIcon, UpIcon, PrevIcon } from './Icons';
 
 export default function FileExplorer({ deviceId, onBack }) {
@@ -8,7 +8,7 @@ export default function FileExplorer({ deviceId, onBack }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [history, setHistory] = useState([]);
-    
+
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -16,6 +16,9 @@ export default function FileExplorer({ deviceId, onBack }) {
     const [mediaDestDir, setMediaDestDir] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isCapturing, setIsCapturing] = useState(false);
+
+    // Wifi connection state
+    const [isConnectingWifi, setIsConnectingWifi] = useState(false);
 
     const fetchFiles = async (targetPath) => {
         setLoading(true);
@@ -39,8 +42,8 @@ export default function FileExplorer({ deviceId, onBack }) {
     const handleFileClick = (file) => {
         if (file.isDir) {
             setHistory(prev => [...prev, currentPath]);
-            const newPath = currentPath.endsWith('/') 
-                ? `${currentPath}${file.name}/` 
+            const newPath = currentPath.endsWith('/')
+                ? `${currentPath}${file.name}/`
                 : `${currentPath}/${file.name}/`;
             fetchFiles(newPath);
         }
@@ -93,7 +96,7 @@ export default function FileExplorer({ deviceId, onBack }) {
             setSelectedFiles(prev => prev.filter(f => f !== name));
         }
     };
-    
+
     const handleDownload = async () => {
         let dest = localStorage.getItem("adbDownloadDest");
         if (!dest) {
@@ -106,7 +109,7 @@ export default function FileExplorer({ deviceId, onBack }) {
                 return;
             }
         }
-        
+
         setIsDownloading(true);
         setError(null);
         try {
@@ -188,16 +191,32 @@ export default function FileExplorer({ deviceId, onBack }) {
         }
     };
 
+    const handleConnectWifi = async () => {
+        setIsConnectingWifi(true);
+        setError(null);
+        try {
+            const ip = await ConnectWifi(deviceId);
+            alert(`Successfully switched to WiFi connection. Device IP: ${ip}\nYou can now unplug the USB cable. Refresh the devices list if needed.`);
+        } catch (err) {
+            setError("Failed to connect via WiFi: " + err);
+        } finally {
+            setIsConnectingWifi(false);
+        }
+    };
+
     return (
         <div className="file-explorer-container">
             <div className="header">
                 <h1>Files: {deviceId}</h1>
                 <div className="header-actions">
+                    <button className="refresh-btn wifi-btn" onClick={handleConnectWifi} disabled={isCapturing || isRecording || isConnectingWifi}>
+                        {isConnectingWifi ? "Connecting..." : "Connect WiFi"}
+                    </button>
                     <button className="refresh-btn capture-btn" onClick={handleCaptureScreen} disabled={isCapturing || isRecording}>
-                        {isCapturing ? "Capturing..." : "📷 Screen Cap"}
+                        {isCapturing ? "Capturing..." : "Screen Cap"}
                     </button>
                     <button className={`refresh-btn record-btn ${isRecording ? 'recording' : ''}`} onClick={handleToggleRecording} disabled={isCapturing}>
-                        {isRecording ? "⏹ Stop Recording" : "🎥 Record Screen"}
+                        {isRecording ? "Stop Recording" : "Record Screen"}
                     </button>
                     <button className="refresh-btn" onClick={onBack}>
                         <BackIcon />
@@ -208,28 +227,28 @@ export default function FileExplorer({ deviceId, onBack }) {
 
             <div className="content">
                 {error && <div className="error-card">{error}</div>}
-                
+
                 <div className="path-bar">
-                    <button 
-                        className="icon-btn" 
-                        title="Previous Folder" 
-                        onClick={handlePrevious} 
+                    <button
+                        className="icon-btn"
+                        title="Previous Folder"
+                        onClick={handlePrevious}
                         disabled={history.length === 0}
                     >
                         <PrevIcon />
                     </button>
-                    <button 
-                        className="icon-btn" 
-                        title="Up One Level" 
-                        onClick={handleUp} 
+                    <button
+                        className="icon-btn"
+                        title="Up One Level"
+                        onClick={handleUp}
                         disabled={currentPath === "/"}
                     >
                         <UpIcon />
                     </button>
-                    
-                    <input 
-                        type="text" 
-                        value={currentPath} 
+
+                    <input
+                        type="text"
+                        value={currentPath}
                         onChange={(e) => setCurrentPath(e.target.value)}
                         onKeyDown={handlePathChange}
                         className="path-input"
@@ -239,7 +258,7 @@ export default function FileExplorer({ deviceId, onBack }) {
                         Go
                     </button>
                 </div>
-                
+
                 {selectedFiles.length > 0 && (
                     <div className="action-bar">
                         <span className="selected-count">{selectedFiles.length} item(s) selected</span>
@@ -253,7 +272,7 @@ export default function FileExplorer({ deviceId, onBack }) {
                         </div>
                     </div>
                 )}
-                
+
                 <div className="file-list-wrapper">
                     {loading ? (
                         <div className="loading-state">Loading files...</div>
@@ -262,10 +281,10 @@ export default function FileExplorer({ deviceId, onBack }) {
                             <thead>
                                 <tr>
                                     <th className="checkbox-cell">
-                                        <input 
-                                            type="checkbox" 
-                                            onChange={toggleSelectAll} 
-                                            checked={selectedFiles.length === files.length && files.length > 0} 
+                                        <input
+                                            type="checkbox"
+                                            onChange={toggleSelectAll}
+                                            checked={selectedFiles.length === files.length && files.length > 0}
                                         />
                                     </th>
                                     <th>Type</th>
@@ -279,10 +298,10 @@ export default function FileExplorer({ deviceId, onBack }) {
                                 {files.map((file, idx) => (
                                     <tr key={idx} className={`file-row ${file.isDir ? 'is-dir' : ''} ${selectedFiles.includes(file.name) ? 'selected' : ''}`} onClick={() => handleFileClick(file)}>
                                         <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedFiles.includes(file.name)} 
-                                                onChange={(e) => toggleSelectFile(e, file.name)} 
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedFiles.includes(file.name)}
+                                                onChange={(e) => toggleSelectFile(e, file.name)}
                                             />
                                         </td>
                                         <td className="file-icon-cell">
