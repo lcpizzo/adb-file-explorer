@@ -17,7 +17,7 @@
   min-height: 100vh;
   background-color: var(--bg-color);
   background-image: radial-gradient(circle at top right, rgba(88, 166, 255, 0.1), transparent 400px),
-                    radial-gradient(circle at bottom left, rgba(35, 134, 54, 0.05), transparent 400px);
+    radial-gradient(circle at bottom left, rgba(35, 134, 54, 0.05), transparent 400px);
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   display: flex;
@@ -94,9 +94,17 @@
 }
 
 @keyframes pulseRecord {
-  0% { box-shadow: 0 0 0 0 rgba(218, 54, 51, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(218, 54, 51, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(218, 54, 51, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(218, 54, 51, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(218, 54, 51, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(218, 54, 51, 0);
+  }
 }
 
 .spin {
@@ -104,8 +112,13 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .content {
@@ -278,22 +291,29 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px);
   }
-  to { 
+
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.file-explorer-container, .device-list-container {
+.file-explorer-container,
+.device-list-container {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -318,7 +338,7 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .icon-btn:hover:not(:disabled) {
@@ -342,7 +362,7 @@
   font-size: 1rem;
   outline: none;
   transition: border-color 0.2s;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .path-input:focus {
@@ -386,7 +406,7 @@
 .file-table th {
   position: sticky;
   top: 0;
-  background: rgba(30,35,45, 0.95);
+  background: rgba(30, 35, 45, 0.95);
   backdrop-filter: blur(10px);
   padding: 16px;
   font-weight: 600;
@@ -437,7 +457,9 @@
   width: 40%;
 }
 
-.file-size, .file-mode, .file-modified {
+.file-size,
+.file-mode,
+.file-modified {
   color: var(--text-secondary);
   font-family: monospace;
 }
@@ -475,30 +497,13 @@
   border-left: 3px solid var(--accent-color);
 }
 
-.action-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(30, 35, 45, 0.95);
-  border: 1px solid var(--accent-color);
-  padding: 12px 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  animation: slideUp 0.3s ease;
-  box-shadow: 0 4px 15px rgba(88, 166, 255, 0.1);
-}
-
 .selected-count {
   font-weight: 600;
   color: var(--accent-color);
+  font-size: 0.9rem;
 }
 
-.action-buttons {
-  display: flex;
-  gap: 12px;
-}
-
-.action-buttons .dest-btn {
+.dest-btn {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
   border: 1px solid var(--panel-border);
@@ -507,13 +512,14 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 0.9rem;
 }
 
-.action-buttons .dest-btn:hover {
+.dest-btn:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.action-buttons .download-btn {
+.download-btn {
   background: var(--status-device);
   color: #fff;
   border: none;
@@ -523,14 +529,74 @@
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 4px 12px rgba(35, 134, 54, 0.2);
+  font-size: 0.9rem;
 }
 
-.action-buttons .download-btn:hover:not(:disabled) {
+.download-btn:hover:not(:disabled) {
   background: #2ea043;
   transform: translateY(-1px);
 }
 
-.action-buttons .download-btn:disabled {
+.download-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Explorer Layout */
+.explorer-body {
+  display: flex;
+  flex: 1;
+  gap: 20px;
+  min-height: 0;
+  /* needed for internal scrolling */
+  width: 100%;
+}
+
+.main-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* allows child overflow */
+}
+
+.preview-pane {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  /* Dimensional changes to wrap content */
+  width: fit-content;
+  max-width: 45%;
+  min-width: 200px;
+  height: fit-content;
+  align-self: flex-start;
+
+  /* Sticky positioning for scroll visibility */
+  position: sticky;
+  top: 110px;
+}
+
+.preview-pane img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  animation: fadeIn 0.3s ease;
+}
+
+.preview-placeholder {
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 0.95rem;
+  font-style: italic;
 }

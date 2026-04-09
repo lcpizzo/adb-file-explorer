@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ListFiles, SelectDirectory, DownloadFiles, CaptureScreen, RecordScreen, StopScreenRecord, ConnectWifi } from "../../wailsjs/go/main/App";
+import { ListFiles, SelectDirectory, DownloadFiles, CaptureScreen, RecordScreen, StopScreenRecord, ConnectWifi, GetImagePreview } from "../../wailsjs/go/main/App";
 import { FolderIcon, FileIcon, BackIcon, UpIcon, PrevIcon } from './Icons';
 
 export default function FileExplorer({ deviceId, onBack }) {
@@ -19,6 +19,10 @@ export default function FileExplorer({ deviceId, onBack }) {
 
     // Wifi connection state
     const [isConnectingWifi, setIsConnectingWifi] = useState(false);
+
+    // Image preview state
+    const [previewImage, setPreviewImage] = useState(null);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
     const fetchFiles = async (targetPath) => {
         setLoading(true);
@@ -40,6 +44,14 @@ export default function FileExplorer({ deviceId, onBack }) {
     }, [deviceId]);
 
     const handleFileClick = (file) => {
+        if (selectedFiles.includes(file.name)) {
+            setSelectedFiles(prev => prev.filter(f => f !== file.name));
+        } else {
+            setSelectedFiles(prev => [...prev, file.name]);
+        }
+    };
+
+    const handleFileDoubleClick = (file) => {
         if (file.isDir) {
             setHistory(prev => [...prev, currentPath]);
             const newPath = currentPath.endsWith('/')
@@ -204,11 +216,52 @@ export default function FileExplorer({ deviceId, onBack }) {
         }
     };
 
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchPreview = async () => {
+            const imageFiles = selectedFiles.filter(f => f.match(/\.(png|jpe?g|gif|webp)$/i));
+            if (imageFiles.length === 0) {
+                setPreviewImage(null);
+                return;
+            }
+
+            const imgName = imageFiles[imageFiles.length - 1]; // Preview most recent image selected
+            const fullPath = currentPath.endsWith('/') ? currentPath + imgName : currentPath + '/' + imgName;
+
+            setIsPreviewLoading(true);
+            try {
+                const b64 = await GetImagePreview(deviceId, fullPath);
+                if (!isCancelled) setPreviewImage(b64);
+            } catch (err) {
+                if (!isCancelled) setPreviewImage(null);
+                console.error("Failed to load image preview:", err);
+            } finally {
+                if (!isCancelled) setIsPreviewLoading(false);
+            }
+        };
+
+        fetchPreview();
+
+        return () => { isCancelled = true; };
+    }, [selectedFiles, currentPath, deviceId]);
+
     return (
         <div className="file-explorer-container">
             <div className="header">
                 <h1>Files: {deviceId}</h1>
                 <div className="header-actions">
+                    <span className="selected-count" style={{ marginRight: '8px', opacity: selectedFiles.length > 0 ? 1 : 0.5 }}>
+                        {selectedFiles.length} item(s) selected
+                    </span>
+                    <button className="dest-btn" onClick={handleChangeDest} disabled={isDownloading}>
+                        Change Dest
+                    </button>
+                    <button className="download-btn" onClick={handleDownload} disabled={isDownloading || selectedFiles.length === 0}>
+                        {isDownloading ? "Downloading..." : "⬇ Download"}
+                    </button>
+                    <div style={{ width: '1px', height: '24px', background: 'var(--panel-border)', margin: '0 8px' }}></div>
+
                     <button className="refresh-btn wifi-btn" onClick={handleConnectWifi} disabled={isCapturing || isRecording || isConnectingWifi}>
                         {isConnectingWifi ? "Connecting..." : "Connect WiFi"}
                     </button>
@@ -259,68 +312,72 @@ export default function FileExplorer({ deviceId, onBack }) {
                     </button>
                 </div>
 
-                {selectedFiles.length > 0 && (
-                    <div className="action-bar">
-                        <span className="selected-count">{selectedFiles.length} item(s) selected</span>
-                        <div className="action-buttons">
-                            <button className="dest-btn" onClick={handleChangeDest} disabled={isDownloading}>
-                                Change Dest
-                            </button>
-                            <button className="download-btn" onClick={handleDownload} disabled={isDownloading}>
-                                {isDownloading ? "Downloading..." : "⬇ Download"}
-                            </button>
+                <div className="explorer-body">
+                    <div className="main-pane">
+
+                        <div className="file-list-wrapper">
+                            {loading ? (
+                                <div className="loading-state">Loading files...</div>
+                            ) : (
+                                <table className="file-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="checkbox-cell">
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={toggleSelectAll}
+                                                    checked={selectedFiles.length === files.length && files.length > 0}
+                                                />
+                                            </th>
+                                            <th>Type</th>
+                                            <th>Name</th>
+                                            <th>Size</th>
+                                            <th>Modified</th>
+                                            <th>Permissions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {files.map((file, idx) => (
+                                            <tr key={idx} className={`file-row ${file.isDir ? 'is-dir' : ''} ${selectedFiles.includes(file.name) ? 'selected' : ''}`} onClick={() => handleFileClick(file)} onDoubleClick={() => handleFileDoubleClick(file)}>
+                                                <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedFiles.includes(file.name)}
+                                                        onChange={(e) => toggleSelectFile(e, file.name)}
+                                                    />
+                                                </td>
+                                                <td className="file-icon-cell">
+                                                    {file.isDir ? <FolderIcon /> : <FileIcon />}
+                                                </td>
+                                                <td className="file-name">{file.name}</td>
+                                                <td className="file-size">{file.size}</td>
+                                                <td className="file-modified">{file.modified}</td>
+                                                <td className="file-mode">{file.mode}</td>
+                                            </tr>
+                                        ))}
+                                        {files.length === 0 && (
+                                            <tr>
+                                                <td colSpan="6" className="empty-folder">Directory is empty</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     </div>
-                )}
 
-                <div className="file-list-wrapper">
-                    {loading ? (
-                        <div className="loading-state">Loading files...</div>
-                    ) : (
-                        <table className="file-table">
-                            <thead>
-                                <tr>
-                                    <th className="checkbox-cell">
-                                        <input
-                                            type="checkbox"
-                                            onChange={toggleSelectAll}
-                                            checked={selectedFiles.length === files.length && files.length > 0}
-                                        />
-                                    </th>
-                                    <th>Type</th>
-                                    <th>Name</th>
-                                    <th>Size</th>
-                                    <th>Modified</th>
-                                    <th>Permissions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {files.map((file, idx) => (
-                                    <tr key={idx} className={`file-row ${file.isDir ? 'is-dir' : ''} ${selectedFiles.includes(file.name) ? 'selected' : ''}`} onClick={() => handleFileClick(file)}>
-                                        <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedFiles.includes(file.name)}
-                                                onChange={(e) => toggleSelectFile(e, file.name)}
-                                            />
-                                        </td>
-                                        <td className="file-icon-cell">
-                                            {file.isDir ? <FolderIcon /> : <FileIcon />}
-                                        </td>
-                                        <td className="file-name">{file.name}</td>
-                                        <td className="file-size">{file.size}</td>
-                                        <td className="file-modified">{file.modified}</td>
-                                        <td className="file-mode">{file.mode}</td>
-                                    </tr>
-                                ))}
-                                {files.length === 0 && (
-                                    <tr>
-                                        <td colSpan="6" className="empty-folder">Directory is empty</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    )}
+                    <div className="preview-pane">
+                        {isPreviewLoading ? (
+                            <div className="preview-placeholder">Loading preview...</div>
+                        ) : previewImage ? (
+                            <img src={previewImage} alt="Preview" />
+                        ) : (
+                            <div className="preview-placeholder">
+                                Select an image to preview
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
         </div>

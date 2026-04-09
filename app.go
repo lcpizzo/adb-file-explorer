@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -247,4 +248,43 @@ func (a *App) ConnectWifi(deviceID string) (string, error) {
 	}
 
 	return ip, nil
+}
+
+// GetImagePreview pulls the image to a temp file, reads it, and returns a base64 encoded data URI
+func (a *App) GetImagePreview(deviceID string, remotePath string) (string, error) {
+	ext := strings.ToLower(filepath.Ext(remotePath))
+	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".gif" && ext != ".webp" {
+		return "", fmt.Errorf("not a supported image format: %s", ext)
+	}
+
+	tempFile, err := os.CreateTemp("", "adb_preview_*.tmp")
+	if err != nil {
+		return "", err
+	}
+	tempPath := tempFile.Name()
+	tempFile.Close() // Close so adb can write to it without lock issues
+	defer os.Remove(tempPath)
+
+	cmd := exec.Command(adbPath, "-s", deviceID, "pull", remotePath, tempPath)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to pull image: %v", err)
+	}
+
+	bytes, err := os.ReadFile(tempPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read pulled file: %v", err)
+	}
+
+	mimeType := "image/jpeg"
+	switch ext {
+	case ".png":
+		mimeType = "image/png"
+	case ".gif":
+		mimeType = "image/gif"
+	case ".webp":
+		mimeType = "image/webp"
+	}
+
+	base64Str := base64.StdEncoding.EncodeToString(bytes)
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Str), nil
 }

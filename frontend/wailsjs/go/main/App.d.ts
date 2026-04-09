@@ -10,6 +10,8 @@ export function DownloadFiles(arg1:string,arg2:Array<string>,arg3:string):Promis
 
 export function GetAdbDevices():Promise<Array<main.Device>>;
 
+export function GetImagePreview(arg1:string,arg2:string):Promise<string>;
+
 export function ListFiles(arg1:string,arg2:string):Promise<Array<main.FileItem>>;
 
 export function RecordScreen(arg1:string,arg2:string):Promise<void>;
